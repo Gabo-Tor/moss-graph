@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # This is an extremely hacky script -- don't judge :(
 
-from HTMLParser import HTMLParser
+from html.parser import HTMLParser
 import os
 import sys
 import re
-import urllib2
+import urllib.request, urllib.error, urllib.parse
 
 class Edge:
     def __init__ (self):
@@ -60,28 +60,28 @@ def get_component(node, matrix, used):
 
 def main():
     if len(sys.argv) < 3: # We should probably use argparse, but w/e
-        print '\n'.join([
+        print('\n'.join([
             'Usage: python moss-graph.py <mossurl> <graphfile>',
             'mossurl: url of the moss results',
             'graphfile: the file in which to output the gephi-formatted graph matrix',
-        ''])
+        '']))
         sys.exit(1)
 
-    content = urllib2.urlopen(sys.argv[1] if sys.argv[1].startswith('http') else 'http://' + sys.argv[1]).read()
+    content = urllib.request.urlopen(sys.argv[1] if sys.argv[1].startswith('http') else 'http://' + sys.argv[1]).read()
     parser = MossParser()
-    parser.feed(content)
+    parser.feed(content.decode('ascii', errors='ignore'))
 
-    print 'Summary for MOSS report', sys.argv[1]
-    print
+    print('Summary for MOSS report', sys.argv[1])
+    print()
 
-    print 'Student frequencies'
+    print('Student frequencies')
     sorted_frequencies = list(parser.frequencies.items())
     sorted_frequencies.sort(key=lambda elem: elem[1], reverse=True)
     for key, val in sorted_frequencies:
-        print '{:>41s}{:>9d}'.format(key, val)
+        print('{:>41s}{:>9d}'.format(key, val))
 
     matrix = {}
-    for edgeid, edge in parser.edges.iteritems():
+    for edgeid, edge in parser.edges.items():
         a, b = edge.nodes[0], edge.nodes[1]
         matrix.setdefault(a, {}).setdefault(b, edge.weight / 2.0)
         matrix.setdefault(b, {}).setdefault(a, edge.weight / 2.0)
@@ -89,13 +89,13 @@ def main():
 
     with open(sys.argv[2], 'wb') as outfile:
         for node in nodes:
-            outfile.write(';"' + node + '"')
-        outfile.write('\n')
+            outfile.write(bytes(';"' + str(node) + '"', 'ascii'))
+        outfile.write(bytes('\n', 'ascii'))
         for node1 in nodes:
-            outfile.write('"' + node1 + '"')
+            outfile.write(bytes('"' + str(node1) + '"', 'ascii'))
             for node2 in nodes:
-                outfile.write(';{}'.format(matrix[node1].get(node2, 0)))
-            outfile.write('\n')
+                outfile.write(bytes(';{}'.format(matrix[node1].get(node2, 0)), 'ascii'))
+            outfile.write(bytes('\n', 'ascii'))
 
     comps = []
     used = set()
@@ -105,15 +105,14 @@ def main():
             comps.append(comp)
     comps.sort(key=lambda comp:len(comp), reverse=True)
 
-    print
-    print 'Components'
+    print()
+    print('Components')
     for comp in comps:
         sorted_comp = [(node, sum(matrix[node][node2] for node2 in matrix[node]) / (len(comp) - 1)) for node in comp]
         sorted_comp.sort(key=lambda node: node[1], reverse=True)
-        print 'Size {:>4d} ========================================'.format(len(sorted_comp))
+        print('Size {:>4d} ========================================'.format(len(sorted_comp)))
         for node, deg in sorted_comp:
-            print '{:>41s}{:>9.2f}'.format(node, deg)
+            print('{:>41s}{:>9.2f}'.format(node, deg))
 
 if __name__ == '__main__':
     main()
-
